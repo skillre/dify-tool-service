@@ -1,4 +1,4 @@
-from flask import Flask, request, send_from_directory
+from flask import Flask, request, send_from_directory, jsonify
 import time
 import subprocess
 import os
@@ -55,7 +55,11 @@ def upload_markdown():
     try:
         content = request.get_data(as_text=True)
         if not content.strip():
-            return '错误：上传内容为空', 400
+            return jsonify({
+                "success": False,
+                "message": "上传内容为空",
+                "error": "内容不能为空"
+            }), 400
         
         # 创建文件名
         timestamp = int(time.time())
@@ -76,14 +80,31 @@ def upload_markdown():
         )
         
         # 使用固定的公共URL
-        return f'Markdown 文件已保存\n预览链接: {PUBLIC_URL}/html/{html_name}'
+        preview_url = f"{PUBLIC_URL}/html/{html_name}"
+        return jsonify({
+            "success": True,
+            "message": "Markdown 文件已保存",
+            "preview_url": preview_url,
+            "file_name": html_name,
+            "timestamp": timestamp
+        })
     
     except subprocess.CalledProcessError as e:
-        logger.error(f"转换 Markdown 失败: {e.stderr}")
-        return f'转换 Markdown 失败: {e.stderr}', 500
+        error_msg = e.stderr
+        logger.error(f"转换 Markdown 失败: {error_msg}")
+        return jsonify({
+            "success": False,
+            "message": "转换 Markdown 失败",
+            "error": error_msg
+        }), 500
     except Exception as e:
-        logger.error(f"处理上传时出错: {str(e)}")
-        return f'处理上传时出错: {str(e)}', 500
+        error_msg = str(e)
+        logger.error(f"处理上传时出错: {error_msg}")
+        return jsonify({
+            "success": False,
+            "message": "处理上传时出错",
+            "error": error_msg
+        }), 500
 
 @app.route('/html/<filename>', methods=['GET'])
 def get_html(filename):
