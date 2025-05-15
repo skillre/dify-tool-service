@@ -16,7 +16,7 @@ app = Flask(__name__)
 DATA_DIR = "data"
 FILE_EXPIRY_HOURS = 24  # 文件过期时间(小时)
 CLEANUP_INTERVAL_HOURS = 1  # 清理间隔(小时)
-HOST = '192.168.3.11
+HOST = "192.168.3.11"
 PORT = 5003
 # 对外提供的固定链接地址
 PUBLIC_URL = "https://sknote.skillre.online:5113"
