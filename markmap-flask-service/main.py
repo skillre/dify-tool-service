@@ -19,7 +19,7 @@ CLEANUP_INTERVAL_HOURS = 1  # 清理间隔(小时)
 HOST = "192.168.3.11"
 PORT = 5003
 # 对外提供的固定链接地址
-PUBLIC_URL = "xxx" # 按需更改
+PUBLIC_URL = "xxx" # 按需更改，格式为http://xxx:xxx
 
 # 确保数据目录存在
 os.makedirs(DATA_DIR, exist_ok=True)
