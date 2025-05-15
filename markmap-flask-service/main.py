@@ -5,6 +5,7 @@ import os
 import threading
 import shutil
 import logging
+import re
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,6 +51,23 @@ def clean_old_files():
             logger.error(f"清理文件时出错: {e}")
             time.sleep(300)  # 发生错误后等待5分钟再尝试
 
+def sanitize_filename(filename):
+    """
+    清理文件名，移除不安全的字符
+    """
+    # 如果文件名为空，使用默认值
+    if not filename or filename.strip() == "":
+        return str(int(time.time()))
+    
+    # 仅保留字母、数字、下划线、横杠和点
+    filename = re.sub(r'[^\w\-\.]', '_', filename)
+    
+    # 确保文件名不超过100个字符
+    if len(filename) > 100:
+        filename = filename[:100]
+    
+    return filename
+
 @app.route('/upload', methods=['POST'])
 def upload_markdown():
     try:
@@ -61,10 +79,21 @@ def upload_markdown():
                 "error": "内容不能为空"
             }), 400
         
-        # 创建文件名
+        # 获取自定义文件名参数
+        custom_filename = request.args.get('filename', '')
+        
+        # 处理并清理文件名
+        safe_filename = sanitize_filename(custom_filename)
         timestamp = int(time.time())
-        file_name = f"{timestamp}.md"
-        html_name = f"{timestamp}.html"
+        
+        # 构建文件名
+        if safe_filename:
+            base_filename = f"{safe_filename}_{timestamp}"
+        else:
+            base_filename = str(timestamp)
+        
+        file_name = f"{base_filename}.md"
+        html_name = f"{base_filename}.html"
         file_path = os.path.join(DATA_DIR, file_name)
         
         # 保存 Markdown 文件
@@ -86,6 +115,7 @@ def upload_markdown():
             "message": "Markdown 文件已保存",
             "preview_url": preview_url,
             "file_name": html_name,
+            "base_name": base_filename,
             "timestamp": timestamp
         })
     
