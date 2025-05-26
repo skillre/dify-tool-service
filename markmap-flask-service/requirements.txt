@@ -1,3 +1,10 @@
 Flask==2.3.3
 Werkzeug==2.3.7
 gunicorn==21.2.0
+markdown==3.4.3
+pydot==1.4.2
+Pillow==9.5.0
+pygraphviz==1.10
+networkx==3.1
+selenium==4.15.0
+webdriver-manager==4.0.1
