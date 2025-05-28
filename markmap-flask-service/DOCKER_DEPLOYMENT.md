@@ -1,10 +1,72 @@
 # Docker 部署指南
 
-本文档介绍如何使用Docker部署markmap Flask服务，包含完整的思维导图生成、PNG截图和文件下载功能。
+本文档介绍了如何使用Docker部署markmap Flask服务，包含完整的思维导图生成、PNG截图和文件下载功能。
 
-## 🐳 Docker镜像特性
+## 方法一：使用Docker Compose（推荐）
 
-### 已安装组件
+使用Docker Compose是最简单的部署方式，只需几个简单的步骤即可完成部署。
+
+### 前提条件
+
+- 安装了Docker和Docker Compose
+- 克隆或下载了本项目代码
+
+### 部署步骤
+
+1. 复制环境变量示例文件并根据需要修改
+
+```bash
+cp env.example .env
+```
+
+2. 编辑`.env`文件，配置您的环境变量，特别是`PUBLIC_URL`，确保它指向您的公网地址
+
+```
+# 服务配置
+PUBLIC_URL=http://your-domain:5003  # 修改为您的公网地址
+PORT=5003                           # 服务端口
+
+# 数据存储
+DATA_VOLUME=./data                  # 数据存储路径
+
+# 文件管理
+FILE_EXPIRY_HOURS=24                # 文件过期时间(小时)
+CLEANUP_INTERVAL_HOURS=1            # 清理间隔(小时)
+```
+
+3. 使用Docker Compose构建并启动服务
+
+```bash
+docker-compose up -d
+```
+
+4. 服务将在`http://localhost:5003`（或您在`.env`中配置的地址）上运行
+
+### 查看日志
+
+```bash
+docker-compose logs -f
+```
+
+### 停止服务
+
+```bash
+docker-compose down
+```
+
+### 更新服务
+
+```bash
+git pull                # 获取最新代码
+docker-compose build    # 重新构建镜像
+docker-compose up -d    # 重启服务
+```
+
+## 方法二：使用Docker直接部署
+
+### 🐳 Docker镜像特性
+
+#### 已安装组件
 - **Python 3.11**: 基础运行环境
 - **Node.js 18**: 用于运行markmap-cli
 - **Google Chrome**: 用于生成PNG截图
@@ -12,7 +74,7 @@
 - **markmap-cli**: 思维导图生成工具
 - **中文字体支持**: Noto CJK字体
 
-### 环境变量配置
+#### 环境变量配置
 ```dockerfile
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -74,49 +136,6 @@ curl -X POST "http://localhost:5003/upload?filename=test" \
 ```
 
 ## 🔧 高级配置
-
-### Docker Compose 部署
-
-创建 `docker-compose.yml` 文件：
-
-```yaml
-version: '3.8'
-
-services:
-  markmap-service:
-    build: .
-    container_name: markmap-service
-    ports:
-      - "5003:5003"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - PUBLIC_URL=http://localhost:5003
-      - FILE_EXPIRY_HOURS=24
-      - CLEANUP_INTERVAL_HOURS=1
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-```
-
-使用Docker Compose启动：
-
-```bash
-# 启动服务
-docker-compose up -d
-
-# 查看状态
-docker-compose ps
-
-# 查看日志
-docker-compose logs -f
-
-# 停止服务
-docker-compose down
-```
 
 ### 生产环境配置
 

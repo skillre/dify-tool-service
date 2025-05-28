@@ -1,15 +1,124 @@
 # Markmap Flask 服务
 
-这是一个基于Flask的思维导图生成服务，可以将Markdown文件转换为交互式HTML思维导图，并同时生成PNG图片和提供原始文件下载。
+这是一个基于Flask的思维导图服务，可以将Markdown文件转换为交互式思维导图，并提供HTML和PNG格式的导出。
 
-## 功能特性
+## 功能特点
 
-- 📝 **Markdown转思维导图**: 将Markdown文件转换为交互式HTML思维导图
-- 🖼️ **PNG图片生成**: 自动生成思维导图的PNG截图
-- 📁 **多格式下载**: 提供HTML、Markdown和PNG三种格式的文件下载
-- 🔗 **在线预览**: 支持在线预览生成的思维导图
-- 🧹 **自动清理**: 定时清理过期文件，节省存储空间
-- 🔒 **文件名安全**: 自动清理和规范化文件名
+- 将Markdown文件转换为思维导图HTML
+- 自动生成思维导图的PNG截图
+- 提供文件下载和预览功能
+- 自动清理过期文件
+
+## 快速开始
+
+### 使用Docker Compose启动服务
+
+1. 复制环境变量示例文件并根据需要修改
+
+```bash
+cp env.example .env
+```
+
+2. 编辑`.env`文件，配置您的环境变量
+
+```
+# 服务配置
+PUBLIC_URL=http://your-domain:5003  # 修改为您的公网地址
+PORT=5003                           # 服务端口
+
+# 数据存储
+DATA_VOLUME=./data                  # 数据存储路径
+
+# 文件管理
+FILE_EXPIRY_HOURS=24                # 文件过期时间(小时)
+CLEANUP_INTERVAL_HOURS=1            # 清理间隔(小时)
+```
+
+3. 使用Docker Compose启动服务
+
+```bash
+docker-compose up -d
+```
+
+4. 服务将在`http://localhost:5003`（或您在`.env`中配置的地址）上运行
+
+## API接口
+
+### 上传Markdown并生成思维导图
+
+```
+POST /upload?filename=自定义文件名
+```
+
+请求体：Markdown内容
+
+响应：
+```json
+{
+  "success": true,
+  "message": "思维导图文件已生成",
+  "preview_url": "http://your-domain:5003/html/filename_timestamp.html",
+  "download_urls": {
+    "html": "http://your-domain:5003/download/filename_timestamp.html",
+    "markdown": "http://your-domain:5003/download/filename_timestamp.md",
+    "png": "http://your-domain:5003/download/filename_timestamp.png"
+  },
+  "files": {
+    "html": "filename_timestamp.html",
+    "markdown": "filename_timestamp.md",
+    "png": "filename_timestamp.png"
+  }
+}
+```
+
+### 预览HTML思维导图
+
+```
+GET /html/filename_timestamp.html
+```
+
+### 下载文件
+
+```
+GET /download/filename_timestamp.html
+GET /download/filename_timestamp.md
+GET /download/filename_timestamp.png
+```
+
+### 获取文件信息
+
+```
+GET /files/filename_timestamp
+```
+
+响应：
+```json
+{
+  "success": true,
+  "base_name": "filename_timestamp",
+  "files": {
+    "html": {
+      "filename": "filename_timestamp.html",
+      "download_url": "http://your-domain:5003/download/filename_timestamp.html",
+      "size": 12345,
+      "modified_time": 1698765432.1
+    },
+    "md": {
+      "filename": "filename_timestamp.md",
+      "download_url": "http://your-domain:5003/download/filename_timestamp.md",
+      "size": 1234,
+      "modified_time": 1698765432.0
+    },
+    "png": {
+      "filename": "filename_timestamp.png",
+      "download_url": "http://your-domain:5003/download/filename_timestamp.png",
+      "size": 54321,
+      "modified_time": 1698765433.0
+    }
+  },
+  "preview_url": "http://your-domain:5003/html/filename_timestamp.html"
+}
+```
 
 ## 安装依赖
 
@@ -49,85 +158,6 @@ CLEANUP_INTERVAL_HOURS = 1  # 清理间隔(小时)
 
 ```bash
 python main.py
-```
-
-## API接口
-
-### 1. 上传Markdown文件
-
-**POST** `/upload`
-
-**参数:**
-- `filename` (可选): 自定义文件名
-- 请求体: Markdown内容
-
-**响应:**
-```json
-{
-  "success": true,
-  "message": "思维导图文件已生成",
-  "preview_url": "http://your-domain:5003/html/filename_timestamp.html",
-  "download_urls": {
-    "html": "http://your-domain:5003/download/filename_timestamp.html",
-    "markdown": "http://your-domain:5003/download/filename_timestamp.md",
-    "png": "http://your-domain:5003/download/filename_timestamp.png"
-  },
-  "files": {
-    "html": "filename_timestamp.html",
-    "markdown": "filename_timestamp.md",
-    "png": "filename_timestamp.png"
-  },
-  "base_name": "filename_timestamp",
-  "timestamp": 1234567890,
-  "png_generated": true
-}
-```
-
-### 2. 在线预览
-
-**GET** `/html/<filename>`
-
-直接在浏览器中查看生成的思维导图。
-
-### 3. 文件下载
-
-**GET** `/download/<filename>`
-
-下载指定的文件（HTML、Markdown或PNG格式）。
-
-### 4. 获取文件信息
-
-**GET** `/files/<base_name>`
-
-获取指定基础名称的所有相关文件信息。
-
-**响应:**
-```json
-{
-  "success": true,
-  "base_name": "filename_timestamp",
-  "files": {
-    "html": {
-      "filename": "filename_timestamp.html",
-      "download_url": "http://your-domain:5003/download/filename_timestamp.html",
-      "size": 12345,
-      "modified_time": 1234567890.123
-    },
-    "md": {
-      "filename": "filename_timestamp.md",
-      "download_url": "http://your-domain:5003/download/filename_timestamp.md",
-      "size": 1234,
-      "modified_time": 1234567890.123
-    },
-    "png": {
-      "filename": "filename_timestamp.png",
-      "download_url": "http://your-domain:5003/download/filename_timestamp.png",
-      "size": 123456,
-      "modified_time": 1234567890.123
-    }
-  },
-  "preview_url": "http://your-domain:5003/html/filename_timestamp.html"
-}
 ```
 
 ## 使用示例
