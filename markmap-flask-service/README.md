@@ -1,11 +1,10 @@
 # Markmap Flask 服务
 
-这是一个基于Flask的思维导图服务，可以将Markdown文件转换为交互式思维导图，并提供HTML和PNG格式的导出。
+这是一个基于Flask的思维导图服务，可以将Markdown文件转换为交互式思维导图，并提供HTML格式的导出。
 
 ## 功能特点
 
 - 将Markdown文件转换为思维导图HTML
-- 自动生成思维导图的PNG截图
 - 提供文件下载和预览功能
 - 自动清理过期文件
 
@@ -56,17 +55,15 @@ POST /upload?filename=自定义文件名
 ```json
 {
   "success": true,
-  "message": "思维导图文件已生成",
+  "message": "思维导图HTML文件已生成",
   "preview_url": "http://your-domain:5003/html/filename_timestamp.html",
   "download_urls": {
     "html": "http://your-domain:5003/download/filename_timestamp.html",
-    "markdown": "http://your-domain:5003/download/filename_timestamp.md",
-    "png": "http://your-domain:5003/download/filename_timestamp.png"
+    "markdown": "http://your-domain:5003/download/filename_timestamp.md"
   },
   "files": {
     "html": "filename_timestamp.html",
-    "markdown": "filename_timestamp.md",
-    "png": "filename_timestamp.png"
+    "markdown": "filename_timestamp.md"
   }
 }
 ```
@@ -82,7 +79,6 @@ GET /html/filename_timestamp.html
 ```
 GET /download/filename_timestamp.html
 GET /download/filename_timestamp.md
-GET /download/filename_timestamp.png
 ```
 
 ### 获取文件信息
@@ -108,12 +104,6 @@ GET /files/filename_timestamp
       "download_url": "http://your-domain:5003/download/filename_timestamp.md",
       "size": 1234,
       "modified_time": 1698765432.0
-    },
-    "png": {
-      "filename": "filename_timestamp.png",
-      "download_url": "http://your-domain:5003/download/filename_timestamp.png",
-      "size": 54321,
-      "modified_time": 1698765433.0
     }
   },
   "preview_url": "http://your-domain:5003/html/filename_timestamp.html"
@@ -138,9 +128,6 @@ pip install -r requirements.txt
    # 安装markmap-cli
    npm install -g markmap-cli
    ```
-
-2. **Chrome浏览器**: 用于生成PNG截图
-   - Selenium会自动下载ChromeDriver
 
 ## 配置
 
@@ -215,17 +202,11 @@ print(f"下载地址: {result['download_urls']}")
 
 ## 注意事项
 
-1. **Chrome依赖**: PNG生成功能需要Chrome浏览器，服务会自动下载ChromeDriver
-2. **Node.js依赖**: 需要安装Node.js和markmap-cli
-3. **文件大小**: 建议Markdown文件不要过大，以免影响转换性能
-4. **网络访问**: 确保PUBLIC_URL配置正确，以便外部访问
+1. **Node.js依赖**: 需要安装Node.js和markmap-cli
+2. **文件大小**: 建议Markdown文件不要过大，以免影响转换性能
+3. **网络访问**: 确保PUBLIC_URL配置正确，以便外部访问
 
 ## 故障排除
-
-### PNG生成失败
-- 检查Chrome是否正确安装
-- 查看日志中的错误信息
-- 确保有足够的系统资源
 
 ### Markmap转换失败
 - 检查Node.js和markmap-cli是否正确安装

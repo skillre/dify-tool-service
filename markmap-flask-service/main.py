@@ -10,16 +10,8 @@ import fcntl
 import hashlib
 import json
 from functools import wraps
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from concurrent.futures import ThreadPoolExecutor
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -46,8 +38,6 @@ HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "5003"))
 # 对外提供的固定链接地址
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:5003")
-# 线程池配置
-MAX_WORKERS = int(os.environ.get("MAX_WORKERS", "4"))
 
 # 确保数据目录存在
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -56,10 +46,6 @@ os.makedirs(DATA_DIR, exist_ok=True)
 content_cache = {}
 # 缓存锁，防止并发写入
 cache_lock = threading.Lock()
-# 线程池，用于异步处理任务
-thread_pool = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-# 后台任务状态，存储结构为 {task_id: status}
-background_tasks = {}
 
 def get_content_hash(content):
     """计算内容的SHA-256哈希值"""
@@ -128,100 +114,6 @@ def sanitize_filename(filename):
     
     return filename
 
-def generate_png_screenshot(html_path, png_path):
-    """
-    使用Selenium生成HTML文件的PNG截图，使用动态等待机制
-    """
-    try:
-        # 配置Chrome选项，增加内存优化选项
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--window-size=1920,1080')
-        chrome_options.add_argument('--disable-extensions')
-        chrome_options.add_argument('--disable-plugins')
-        chrome_options.add_argument('--disable-web-security')
-        chrome_options.add_argument('--disable-features=VizDisplayCompositor')
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        chrome_options.add_argument('--disable-background-timer-throttling')
-        chrome_options.add_argument('--disable-renderer-backgrounding')
-        chrome_options.add_argument('--disable-backgrounding-occluded-windows')
-        # 内存优化选项
-        chrome_options.add_argument('--single-process')
-        chrome_options.add_argument('--disable-application-cache')
-        chrome_options.add_argument('--disable-infobars')
-        chrome_options.add_argument('--mute-audio')
-        chrome_options.add_argument('--js-flags=--expose-gc')
-        chrome_options.add_argument('--disable-translate')
-        chrome_options.add_argument('--safebrowsing-disable-auto-update')
-        chrome_options.add_argument('--disable-sync')
-        chrome_options.add_argument('--aggressive-cache-discard')
-        chrome_options.add_argument('--disable-cache')
-        chrome_options.add_argument('--disable-default-apps')
-        
-        # 检查是否在Docker环境中
-        chrome_binary = os.environ.get('CHROME_BIN', '/usr/bin/chromium')
-        if os.path.exists(chrome_binary):
-            chrome_options.binary_location = chrome_binary
-        
-        # 创建WebDriver服务
-        try:
-            # 优先使用系统ChromeDriver，避免每次下载
-            chromedriver_path = '/usr/bin/chromedriver'
-            if os.path.exists(chromedriver_path):
-                service = Service(chromedriver_path)
-            else:
-                service = Service(ChromeDriverManager().install())
-        except Exception as e:
-            logger.error(f"ChromeDriver初始化失败: {e}")
-            service = None
-        
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        try:
-            # 打开HTML文件
-            file_url = f"file://{os.path.abspath(html_path)}"
-            driver.get(file_url)
-            
-            # 等待页面加载完成
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "svg"))
-            )
-            
-            # 等待思维导图渲染完成
-            # 尝试使用JavaScript检查markmap渲染状态
-            wait_time = 0
-            max_wait_time = 10  # 最大等待时间（秒）
-            check_interval = 0.5  # 检查间隔（秒）
-            
-            while wait_time < max_wait_time:
-                loaded = driver.execute_script("""
-                    return document.querySelectorAll('svg g.markmap-node').length > 0;
-                """)
-                
-                if loaded:
-                    break
-                    
-                time.sleep(check_interval)
-                wait_time += check_interval
-            
-            # 额外短暂等待以确保渲染稳定
-            time.sleep(1)
-            
-            # 获取页面截图
-            driver.save_screenshot(png_path)
-            logger.info(f"PNG截图已生成: {png_path}")
-            return True
-            
-        finally:
-            driver.quit()
-            
-    except Exception as e:
-        logger.error(f"生成PNG截图失败: {e}")
-        return False
-
 @app.route('/upload', methods=['POST'])
 @limiter.limit("10 per minute")
 def upload_markdown():
@@ -244,11 +136,8 @@ def upload_markdown():
                 # 检查文件是否仍然存在
                 html_path = os.path.join(DATA_DIR, cache_data['files']['html'])
                 md_path = os.path.join(DATA_DIR, cache_data['files']['markdown'])
-                png_path = os.path.join(DATA_DIR, cache_data['files']['png']) if cache_data['files']['png'] else None
                 
-                if (os.path.exists(html_path) and 
-                    os.path.exists(md_path) and 
-                    (png_path is None or os.path.exists(png_path))):
+                if (os.path.exists(html_path) and os.path.exists(md_path)):
                     logger.info(f"使用缓存的思维导图: {cache_data['base_name']}")
                     return jsonify(cache_data)
         
@@ -282,69 +171,24 @@ def upload_markdown():
             check=True
         )
         
-        # 生成PNG图片文件
-        png_name = f"{base_filename}.png"
-        png_path = os.path.join(DATA_DIR, png_name)
-        
-        # 使用线程池异步生成PNG截图
-        task_id = f"png_{timestamp}"
-        background_tasks[task_id] = {
-            "status": "pending",
-            "message": "PNG生成中",
-            "created_time": time.time()
-        }
-        
-        # 异步执行PNG生成
-        def generate_png_background():
-            try:
-                success = generate_png_screenshot(html_path, png_path)
-                background_tasks[task_id] = {
-                    "status": "completed" if success else "failed",
-                    "message": "PNG生成成功" if success else "PNG生成失败",
-                    "completed_time": time.time()
-                }
-                
-                # 更新缓存中的PNG状态
-                with cache_lock:
-                    if content_hash in content_cache:
-                        if success and os.path.exists(png_path):
-                            content_cache[content_hash]["files"]["png"] = png_name
-                            content_cache[content_hash]["download_urls"]["png"] = f"{PUBLIC_URL}/download/{png_name}"
-                            content_cache[content_hash]["png_generated"] = True
-            except Exception as e:
-                logger.error(f"后台PNG生成失败: {e}")
-                background_tasks[task_id] = {
-                    "status": "failed",
-                    "message": f"PNG生成异常: {str(e)}",
-                    "error": str(e),
-                    "completed_time": time.time()
-                }
-        
-        # 提交任务到线程池
-        thread_pool.submit(generate_png_background)
-        
         # 使用固定的公共URL
         preview_url = f"{PUBLIC_URL}/html/{html_name}"
         download_urls = {
             "html": f"{PUBLIC_URL}/download/{html_name}",
-            "markdown": f"{PUBLIC_URL}/download/{file_name}",
-            "png": None  # PNG将异步生成
+            "markdown": f"{PUBLIC_URL}/download/{file_name}"
         }
         
         response_data = {
             "success": True,
-            "message": "思维导图文件已生成，PNG正在后台生成",
+            "message": "思维导图HTML文件已生成",
             "preview_url": preview_url,
             "download_urls": download_urls,
             "files": {
                 "html": html_name,
-                "markdown": file_name,
-                "png": None  # PNG将异步生成
+                "markdown": file_name
             },
             "base_name": base_filename,
-            "timestamp": timestamp,
-            "png_generated": False,
-            "task_id": task_id
+            "timestamp": timestamp
         }
         
         # 将结果存入缓存
@@ -396,8 +240,6 @@ def download_file(filename):
             mimetype = 'text/html'
         elif filename.endswith('.md'):
             mimetype = 'text/markdown'
-        elif filename.endswith('.png'):
-            mimetype = 'image/png'
         else:
             mimetype = 'application/octet-stream'
         
@@ -420,10 +262,11 @@ def get_file_info(base_name):
     """获取指定基础名称的所有相关文件信息"""
     try:
         files_info = {}
-        file_types = ['html', 'md', 'png']
+        file_types = ['html', 'md']
         
         for file_type in file_types:
-            filename = f"{base_name}.{file_type}"
+            extension = '.html' if file_type == 'html' else '.md'
+            filename = f"{base_name}{extension}"
             file_path = os.path.join(DATA_DIR, filename)
             if os.path.exists(file_path):
                 files_info[file_type] = {
@@ -454,23 +297,6 @@ def get_file_info(base_name):
             "message": "获取文件信息时出错",
             "error": str(e)
         }), 500
-
-@app.route('/tasks/<task_id>', methods=['GET'])
-def get_task_status(task_id):
-    """获取后台任务状态"""
-    if task_id in background_tasks:
-        task_info = background_tasks[task_id]
-        return jsonify({
-            "success": True,
-            "task_id": task_id,
-            "status": task_info
-        })
-    else:
-        return jsonify({
-            "success": False,
-            "message": "任务不存在",
-            "task_id": task_id
-        }), 404
 
 if __name__ == '__main__':
     # 启动清理线程

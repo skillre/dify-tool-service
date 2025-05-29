@@ -33,9 +33,6 @@ WORKDIR /app
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV DISPLAY=:99
-ENV CHROME_BIN=/usr/bin/chromium
-ENV CHROME_PATH=/usr/bin/chromium
 ENV PYTHONPATH=/opt/venv/lib/python3.11/site-packages
 
 # 从构建阶段复制虚拟环境
@@ -44,12 +41,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium \
-    chromium-driver \
     fonts-noto-cjk \
-    fonts-noto-color-emoji \
     curl \
-    gnupg \
     nodejs \
     npm \
     && apt-get clean \

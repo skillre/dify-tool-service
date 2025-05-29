@@ -20,11 +20,9 @@ services:
       - PORT=5003
       - FILE_EXPIRY_HOURS=${FILE_EXPIRY_HOURS:-24}
       - CLEANUP_INTERVAL_HOURS=${CLEANUP_INTERVAL_HOURS:-1}
-      - MAX_WORKERS=${MAX_WORKERS:-4}
       - DATA_DIR=/app/data
-      # 增加JVM和Chromium内存限制
+      # Node.js内存限制
       - NODE_OPTIONS=--max_old_space_size=${NODE_MEMORY:-256}
-      - CHROMIUM_FLAGS=--disable-dev-shm-usage --disable-gpu
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003"]
       interval: 30s
@@ -43,6 +41,4 @@ services:
       driver: "json-file"
       options:
         max-size: "20m"
-        max-file: "5"
-    # 增加共享内存大小限制，提高Chromium性能
-    shm_size: ${SHM_SIZE:-256M} 
+        max-file: "5" 
